@@ -1,0 +1,4 @@
+postgres/postgres_data/
+minio_data/data_project/
+airflow/logs/
+transformation/jars/
