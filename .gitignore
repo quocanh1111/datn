@@ -2,3 +2,16 @@ postgres/postgres_data/
 minio_data/data_project/
 airflow/logs/
 transformation/jars/
+# Ignore Jupyter Notebook checkpoints
+*.ipynb_checkpoints/
+Untitled*.ipynb
+
+# Ignore Trino logs and run-time data
+trino/data/data/var/log/
+
+# Ignore MinIO internal system tracking
+minio_data/.minio.sys/
+
+# Ignore temp files
+*.txt
+repomix-output.xml
