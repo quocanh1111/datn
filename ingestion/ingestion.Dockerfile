@@ -1,13 +1,13 @@
-FROM python:3.10-slim
+FROM python-base:latest
+USER root
 
-WORKDIR /data_project/ingestion
+# Python deps for Bronze ingestion
+RUN pip3 install --no-cache-dir --ignore-installed \
+    boto3 \
+    pyarrow \
+    minio \
+    faker
 
-COPY requirements.txt .
-
-# Install the required packages & Jupyter
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir jupyter 
-
+WORKDIR /datn/ingestion
 EXPOSE 8888
-
 CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''"]

@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
 
   # Container for Metadata (Postgres)
@@ -31,7 +33,7 @@ services:
       dockerfile: minio.Dockerfile
     container_name: storage
     volumes:
-      - ./minio_data:/data_project/data:rw
+      - ./minio_data:/datn/data:rw
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -50,6 +52,26 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+
+  # Khởi tạo bucket cho MinIO
+  minio-init:
+    image: minio/mc
+    container_name: minio-init
+    depends_on:
+      object-storage:
+        condition: service_healthy
+    env_file:
+      - .env/minio.env
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set storage http://object-storage:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      mc mb --ignore-existing storage/bronze;
+      mc mb --ignore-existing storage/silver;
+      mc mb --ignore-existing storage/gold;
+      mc mb --ignore-existing storage/mart;
+      echo 'All buckets created';
+      "
 
   # Container for Data Catalog (Nessie)
   nessie:
@@ -72,18 +94,32 @@ services:
         reservations:
           memory: 512m
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:19120/api/v1/config || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:19120/api/v2/config || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
-  # Container for Orchestration (Airflow)
+  # Khởi tạo database ban đầu cho Airflow
+  airflow-init:
+    image: python-base:latest
+    container_name: airflow-init
+    env_file:
+      - .env/airflow.env
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+    environment:
+      - AIRFLOW_HOME=/opt/airflow
+    command: airflow db init
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Container for Orchestration (Airflow Webserver)
   airflow:
-    build:
-      context: ./airflow
-      dockerfile: airflow.Dockerfile
+    image: python-base:latest
     container_name: airflow
+    user: "root"
     env_file:
       - .env/airflow.env
     volumes:
@@ -92,27 +128,26 @@ services:
       - ./airflow/logs:/opt/airflow/logs
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "8081:8080"
+      - "1235:8080"
+    environment:
+      - AIRFLOW_HOME=/opt/airflow
+    command: airflow webserver
     restart: always
     depends_on:
       postgres:
         condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
     deploy:
       resources:
         reservations:
           memory: 1g
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
 
+  # Container for Airflow Scheduler
   airflow-scheduler:
-    build:
-      context: ./airflow
-      dockerfile: airflow-scheduler.Dockerfile
+    image: python-base:latest
     container_name: airflow-scheduler
+    user: "root"
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/plugins:/opt/airflow/plugins
@@ -120,12 +155,15 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     env_file:
       - .env/airflow.env
+    environment:
+      - AIRFLOW_HOME=/opt/airflow
+    command: airflow scheduler
     restart: always
     depends_on:
       postgres:
         condition: service_healthy
       airflow:
-        condition: service_healthy
+        condition: service_started
     deploy:
       resources:
         reservations:
@@ -137,8 +175,10 @@ services:
       context: ./ingestion
       dockerfile: ingestion.Dockerfile
     container_name: extraction
+    image: python-extraction:latest
     volumes:
-      - ./ingestion:/data_project/ingestion:rw
+      - ./ingestion:/datn/ingestion:rw
+      - ./minio_data/seed/listenbrainz:/datn/raw/listenbrainz:ro
     ports:
       - "8888:8888"
     env_file:
@@ -150,7 +190,7 @@ services:
       object-storage:
         condition: service_healthy
       airflow:
-        condition: service_healthy
+        condition: service_started
     deploy:
       resources:
         reservations:
@@ -162,8 +202,9 @@ services:
       context: ./transformation
       dockerfile: transformation.Dockerfile
     container_name: transformation
+    image: python-transformation:latest
     volumes:
-      - ./transformation:/data_project/transformation:rw
+      - ./transformation:/datn/transformation:rw
     ports:
       - "8889:8888"
       - "4040:4040"
@@ -250,3 +291,10 @@ services:
       timeout: 5s
       retries: 5
       start_period: 60s
+
+  # Lớp Base Image hệ thống
+  base-builder:
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    image: python-base:latest

@@ -1,17 +1,66 @@
-postgres/postgres_data/
-minio_data/data_project/
-airflow/logs/
-transformation/jars/
-# Ignore Jupyter Notebook checkpoints
-*.ipynb_checkpoints/
-Untitled*.ipynb
-
-# Ignore Trino logs and run-time data
-trino/data/data/var/log/
-
-# Ignore MinIO internal system tracking
+# MinIO data and storage
+minio_data/storage/
+minio_data/bronze/
+minio_data/silver/
+minio_data/gold/
+minio_data/mart/
+minio_data/musicbrainz-thesis/
 minio_data/.minio.sys/
 
-# Ignore temp files
-*.txt
+# Raw data and dumps
+minio_data/seed/
+ingestion/data/
+transformation/data/
+*.parquet
+*.tar
+*.tar.gz
+*.zip
+
+# ListenBrainz extracted dump
+listenbrainz-spark-dump-*/
+
+# Environment files (credentials)
+.env/
+*.env
+
+# Airflow logs
+airflow/logs/
+
+# Postgres data
+postgres/postgres_data/
+
+# Trino data
+trino/data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/transformation/jars/*.jar
+# JARs
+transformation/jars/*.jar
+*.jar
+
+# Junk files
+*.zip
 repomix-output.xml
+lastfm_*
+LFM-*
+.Trash-*
+
+# Trino logs
+trino/data/

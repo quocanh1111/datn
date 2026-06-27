@@ -1,7 +1,6 @@
-FROM apache/airflow:2.10.4-python3.10
+FROM datn-python-base:latest
 
-# Set the working directory (optional, just for organizational purposes)
-WORKDIR /data_project/airflow-schedular
+WORKDIR /opt/airflow
+ENV AIRFLOW_HOME=/opt/airflow
 
-# Run the scheduler
-CMD [ "airflow", "scheduler" ]
+CMD ["airflow", "scheduler"]

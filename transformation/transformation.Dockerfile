@@ -1,28 +1,23 @@
-FROM apache/spark:3.5.7
-
-WORKDIR /data_project/transformation/
-
+FROM python-base:latest
 USER root
 
-# Install Python, pip, and wget
-RUN apt-get update && \
-    apt-get install -y python3 python3-pip wget && \
-    rm -rf /var/lib/apt/lists/*
+# Additional Python deps for S3/Iceberg
+RUN pip3 install --no-cache-dir --ignore-installed \
+    boto3 \
+    pyarrow \
+    minio
 
-# Set Python path for PySpark
-ENV PYTHONPATH="${SPARK_HOME}/python/:$PYTHONPATH"
-ENV PYTHONPATH="${SPARK_HOME}/python/lib/py4j-0.10.9.7-src.zip:$PYTHONPATH"
+# Symlink PySpark as SPARK_HOME
+RUN ln -s $(python3 -c "import pyspark; import os; print(os.path.dirname(pyspark.__file__))") /opt/spark
 
-# Copy requirements.txt and install Python dependencies
-COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+# Spark environment
+ENV SPARK_HOME=/opt/spark
+ENV PATH=$SPARK_HOME/bin:$PATH
+ENV PYSPARK_PYTHON=python3
+ENV PYSPARK_DRIVER_PYTHON=python3
 
-# Create Spark conf directory if missing
-RUN mkdir -p $SPARK_HOME/conf
+# Copy JARs into Spark
+COPY jars/*.jar /opt/spark/jars/
 
-# Copy your updated spark-defaults.conf (must include spark.sql.extensions)
-COPY ./spark-defaults.conf $SPARK_HOME/conf
-
-EXPOSE 8888 7070 4040
-
-CMD ["jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root", "--NotebookApp.token=''"]
+WORKDIR /datn/transformation
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--allow-root"]
