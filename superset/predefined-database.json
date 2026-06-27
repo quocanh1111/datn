@@ -5,7 +5,7 @@
         "allow_ctas": true,
         "allow_cvas": true,
         "database_name": "Trino",
-        "sqlalchemy_uri": "trino://admin@trino:8000/nessie",
+        "sqlalchemy_uri": "trino://admin@trino:8090/nessie",
         "expose_in_sqllab": true
       }
     ]
